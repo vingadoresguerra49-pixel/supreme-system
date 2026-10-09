@@ -1,1 +1,245 @@
-doctype html> </html>.
+doctype html> </html>
+
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixel Quest</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:#0b1020;color:#f4f7ff;font-family:Arial,sans-serif;text-align:center}
+h1{color:#6ee7b7}
+.stats{display:flex;justify-content:center;gap:16px;flex-wrap:wrap}
+canvas{width:100%;max-width:480px;height:auto;background:#17243b;border:3px solid #52617d;border-radius:12px}
+button{padding:12px;margin:5px;background:#263657;color:white;border:1px solid #6ee7b7;border-radius:10px;font-size:18px}
+.controls{display:grid;grid-template-columns:repeat(3,65px);justify-content:center;gap:5px}
+</style>
+</head>
+<body>
+<h1>⚔️ Pixel Quest</h1>
+<div class="stats">
+<p>Fase: <b id="level">1</b>/3</p>
+<p>Moedas: <b id="coins">0</b></p>
+<p>Vidas: <b id="lives">3</b></p>
+</div>
+<canvas id="game" width="480" height="320"></canvas>
+<p id="message">Pegue as estrelas e encontre a porta!</p>
+<div class="controls">
+<span></span><button onclick="move(0,-1)">▲</button><span></span>
+<button onclick="move(-1,0)">◀</button>
+<button onclick="move(0,1)">▼</button>
+<button onclick="move(1,0)">▶</button>
+</div>
+<button onclick="restart()">Reiniciar</button>
+<button id="next" onclick="nextLevel()" hidden>Próxima fase</button>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const size=32;
+
+const maps=[
+[
+"###############",
+"#P....#.......#",
+"#.##..#..##...#",
+"#.....#.......#",
+"###.#####.##..#",
+"#...C.....M...#",
+"#.####..##....#",
+"#......C......#",
+"#...........D.#",
+"###############"
+],
+[
+"###############",
+"#P..#.........#",
+"#.#.#.###.##..#",
+"#.#...#.......#",
+"#.###.#.#####.#",
+"#...C...M.....#",
+"###.####..##..#",
+"#.....C.......#",
+"#...M.......D.#",
+"###############"
+],
+[
+"###############",
+"#P............#",
+"###.####.###..#",
+"#...#....#....#",
+"#.#.#.##.#.##.#",
+"#.#...C..M....#",
+"#.#####.####..#",
+"#....C........#",
+"#...........D.#",
+"###############"
+]];
+
+let level=0,coins=0,lives=3;
+let player={x:1,y:1};
+let walls=[],stars=[],enemies=[],door={x:13,y:8};
+let won=false,over=false;
+
+function loadLevel(){
+walls=[];stars=[];enemies=[];
+won=false;over=false;
+document.getElementById("next").hidden=true;
+
+maps[level].forEach((row,y)=>{
+[...row].forEach((c,x)=>{
+if(c==="#")walls.push({x,y});
+if(c==="P")player={x,y};
+if(c==="C")stars.push({x,y});
+if(c==="M")enemies.push({x,y,dir:1});
+if(c==="D")door={x,y};
+});
+});
+update();
+draw();
+say("Fase "+(level+1)+": pegue as estrelas e vá até a porta!");
+}
+
+function update(){
+document.getElementById("level").textContent=level+1;
+document.getElementById("coins").textContent=coins;
+document.getElementById("lives").textContent="❤️".repeat(lives);
+}
+
+function say(t){
+document.getElementById("message").textContent=t;
+}
+
+function blocked(x,y){
+return walls.some(w=>w.x===x&&w.y===y);
+}
+
+function move(dx,dy){
+if(won||over)return;
+let x=player.x+dx,y=player.y+dy;
+if(x<0||y<0||x>=15||y>=10||blocked(x,y))return;
+player={x,y};
+
+let i=stars.findIndex(s=>s.x===x&&s.y===y);
+if(i!==-1){
+stars.splice(i,1);
+coins++;
+say("Você pegou uma estrela! ⭐");
+}
+
+if(enemies.some(e=>e.x===x&&e.y===y)){
+lives--;
+if(lives<=0){
+over=true;
+say("Fim de jogo! Reinicie para tentar novamente.");
+}else{
+player={x:1,y:1};
+say("Cuidado! Você perdeu uma vida.");
+}
+}
+
+if(x===door.x&&y===door.y&&!over){
+if(stars.length===0){
+won=true;
+if(level===2){
+say("🏆 Parabéns! Você venceu Pixel Quest!");
+}else{
+say("Fase concluída! Continue sua aventura.");
+document.getElementById("next").hidden=false;
+}
+}else{
+say("Ainda faltam "+stars.length+" estrelas!");
+}
+}
+update();
+draw();
+}
+
+function draw(){
+ctx.clearRect(0,0,480,320);
+for(let y=0;y<10;y++){
+for(let x=0;x<15;x++){
+ctx.fillStyle=(x+y)%2?"#1b2a43":"#20314d";
+ctx.fillRect(x*size,y*size,size,size);
+}
+}
+walls.forEach(w=>{
+ctx.fillStyle="#64748b";
+ctx.fillRect(w.x*size+2,w.y*size+2,28,28);
+});
+ctx.font="23px sans-serif";
+ctx.textAlign="center";
+stars.forEach(s=>ctx.fillText("⭐",s.x*size+16,s.y*size+24));
+ctx.fillText("🚪",door.x*size+16,door.y*size+25);
+enemies.forEach(e=>ctx.fillText("👾",e.x*size+16,e.y*size+25));
+
+let x=player.x*size,y=player.y*size;
+ctx.fillStyle="#6ee7b7";
+ctx.fillRect(x+7,y+5,18,22);
+ctx.fillStyle="#143d38";
+ctx.fillRect(x+10,y+10,4,4);
+ctx.fillRect(x+19,y+10,4,4);
+
+if(won||over){
+ctx.fillStyle="#07101d";
+ctx.fillRect(35,118,410,78);
+ctx.fillStyle="white";
+ctx.font="bold 22px Arial";
+ctx.fillText(over?"FIM DE JOGO":level===2?"VOCÊ VENCEU!":"FASE COMPLETA!",240,155);
+}
+}
+
+function moveEnemies(){
+if(won||over)return;
+enemies.forEach(e=>{
+let nx=e.x+e.dir;
+if(blocked(nx,e.y)||nx<=0||nx>=14)e.dir*=-1;
+else e.x=nx;
+if(e.x===player.x&&e.y===player.y){
+lives--;
+if(lives<=0){
+over=true;
+say("Fim de jogo! Toque em Reiniciar.");
+}else{
+player={x:1,y:1};
+say("Um monstro pegou você! Cuidado.");
+}
+update();
+}
+});
+draw();
+}
+
+function nextLevel(){
+if(level<2){
+level++;
+loadLevel();
+}
+}
+
+function restart(){
+level=0;
+coins=0;
+lives=3;
+loadLevel();
+}
+
+document.addEventListener("keydown",e=>{
+const keys={
+ArrowUp:[0,-1],w:[0,-1],
+ArrowDown:[0,1],s:[0,1],
+ArrowLeft:[-1,0],a:[-1,0],
+ArrowRight:[1,0],d:[1,0]
+};
+if(keys[e.key]){
+e.preventDefault();
+move(...keys[e.key]);
+}
+});
+
+setInterval(moveEnemies,700);
+loadLevel();
+</script>
+</body>
+</html>
